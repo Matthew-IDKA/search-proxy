@@ -132,6 +132,12 @@ async def search(request: Request):
         raise
 
 
+@app.get("/")
+async def root():
+    """Root endpoint for health probes."""
+    return await health()
+
+
 @app.get("/health")
 async def health():
     """Return service health with queue metrics."""
