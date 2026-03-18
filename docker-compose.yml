@@ -1,0 +1,28 @@
+services:
+  search-proxy:
+    build: .
+    container_name: search-proxy
+    restart: unless-stopped
+    ports:
+      - "8088:8088"
+    environment:
+      - UPSTREAM_URL=http://searxng:8080
+      - MAX_CONCURRENT=4
+      - REQUEST_TIMEOUT=30
+      - LOG_FILE=/var/log/search-proxy/proxy.log
+      - PORT=8088
+    volumes:
+      - logs:/var/log/search-proxy
+    networks:
+      - search
+
+  # Assumes SearXNG is on the same network or defined elsewhere.
+  # If SearXNG is external, use: network_mode: host
+  # or point UPSTREAM_URL to the host IP.
+
+networks:
+  search:
+    driver: bridge
+
+volumes:
+  logs:
