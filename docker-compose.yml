@@ -11,6 +11,7 @@ services:
       - REQUEST_TIMEOUT=30
       - LOG_FILE=/var/log/search-proxy/proxy.log
       - PORT=8088
+      - PUSHGATEWAY_URL=http://192.168.42.30:9091
     volumes:
       - logs:/var/log/search-proxy
     networks:
