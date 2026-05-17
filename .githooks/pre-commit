@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# gitleaks pre-commit hook -- blocks commits that would introduce a secret.
+#
+# CANONICAL SOURCE: tools/gitleaks/githook-pre-commit  (Vikunja #1264, ADR-062).
+# Installed into a repo as .githooks/pre-commit for repos that have no
+# pre-commit framework. The per-repo copy is managed by the gitleaks bootstrap
+# (the git-onboard skill / the Phase B rollout) -- do NOT edit the per-repo
+# copy; edit this canonical and re-distribute.
+#
+# Pairs with:
+#   - core.hooksPath = .githooks  -- a RELATIVE path, resolvable by both
+#     Windows git and WSL2 git (an absolute Windows path is not; see memory
+#     homelab-iac-corehooks-windows-path).
+#   - a repo-root .gitleaks.toml  -- synced from tools/gitleaks/gitleaks-base.toml.
+#
+# Tier: fast local feedback, bypassable with `git commit --no-verify`. The
+# Forgejo CI gitleaks workflow is the non-bypassable enforcement gate.
+set -euo pipefail
+
+if ! command -v gitleaks >/dev/null 2>&1; then
+  echo "gitleaks: not on PATH -- pre-commit secret scan SKIPPED." >&2
+  echo "  Install gitleaks to activate this tier; CI still enforces." >&2
+  exit 0
+fi
+
+# gitleaks auto-detects the repo-root .gitleaks.toml (config precedence #4).
+# --staged scans what is about to be committed; exit 1 on a finding aborts it.
+exec gitleaks git --staged --redact --no-banner

@@ -1,0 +1,81 @@
+# gitleaks configuration -- homelab canonical ruleset
+#
+# CANONICAL SOURCE. tools/gitleaks/sync-gitleaks-config.py distributes this
+# file byte-identical to every in-scope repo as `.gitleaks.toml`. Edit ONLY
+# this canonical -- a per-repo `.gitleaks.toml` edit is overwritten by the
+# next sync and flagged by the weekly drift probe. See ADR-062 and
+# secrets_policy.md section 3.3.
+#
+# Extends the gitleaks built-in ruleset with homelab-specific credential
+# shapes. Test:  gitleaks detect --config .gitleaks.toml --source .
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "paperless-ngx-token"
+description = "Paperless-ngx API token (40-char hex after 'Authorization: Token')"
+regex = '''(?i)authorization:\s*token\s+[a-f0-9]{40}'''
+tags = ["api", "paperless", "homelab"]
+
+[[rules]]
+id = "anthropic-api-key"
+description = "Anthropic API key"
+regex = '''sk-ant-[A-Za-z0-9_-]{50,}'''
+tags = ["api", "anthropic"]
+
+[[rules]]
+id = "vikunja-api-token"
+description = "Vikunja API token (tk_ prefix). Verify exact shape against vikunja-config.md."
+regex = '''tk_[A-Za-z0-9]{40,}'''
+tags = ["api", "vikunja", "homelab"]
+
+[[rules]]
+id = "bitwarden-client-secret"
+description = "Bitwarden CLI client secret in env assignment"
+regex = '''BW_CLIENTSECRET\s*=\s*\S{20,}'''
+tags = ["api", "bitwarden"]
+
+[[rules]]
+id = "bearer-token-generic"
+description = "Bearer auth header with opaque token"
+regex = '''(?i)authorization:\s*bearer\s+[A-Za-z0-9_.\-]{30,}'''
+tags = ["api", "generic"]
+
+[[rules]]
+id = "curl-basic-auth"
+description = "curl -u/--user with a literal basic-auth password. Variable refs ($VAR) are not flagged. v1 regex -- tune against srm-api during rollout."
+regex = '''(?i)\bcurl\b[^\n]*?-(?:u|-user)[ =]+["']?[A-Za-z0-9._%+-]+:[^\s"'$]{8,}'''
+tags = ["api", "basic-auth", "generic"]
+
+# --- Allowlist ---------------------------------------------------------------
+# Entries here suppress matches. Prefer line-level regex over path-wide skips.
+
+[[allowlists]]
+description = "False positives from CLI flags, documentation references, and known public artifacts."
+regexTarget = "line"
+regexes = [
+  # CLI flag literally named --must-change-password (not a credential)
+  '''--must-change-password''',
+  # Placeholder variable references in docs/examples
+  '''\$PAPERLESS_TOKEN''',
+  '''\$VIKUNJA_TOKEN''',
+  '''\$ANTHROPIC_API_KEY''',
+]
+
+# A documentation-template private key has an angle-bracket placeholder body
+# (e.g. "<content of ~/.ssh/...>") instead of real key material. Suppress those
+# by matching the placeholder against the matched block. A real key -- commented
+# or not, in any file -- has a base64 body and stays flagged.
+# Verified 2026-05-15 (Vikunja #982).
+[[allowlists]]
+description = "Documentation-template private keys -- angle-bracket placeholder body, not real key material"
+regexTarget = "match"
+regexes = ['''<content of [^>]*>''']
+
+# SOPS-encrypted files are ciphertext by construction; entropy and key rules
+# fire on the encrypted body, not on plaintext secrets. Skip them wholesale.
+# Mandated by secrets_policy.md section 3.3.
+[[allowlists]]
+description = "SOPS-encrypted files -- ciphertext, not plaintext secrets (secrets_policy.md 3.3)"
+paths = ['''\.sops(\.|$)''']
