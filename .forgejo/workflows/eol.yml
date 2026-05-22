@@ -1,0 +1,31 @@
+# EOL gate -- Forgejo CI enforcement tier (Vikunja #1308, follow-on to #1297).
+#
+# CANONICAL SOURCE: tools/eol/forgejo-workflow.yml
+# Installed into each Forgejo-hosted repo as .forgejo/workflows/eol.yml.
+#
+# Fails the build if any tracked text file carries a CRLF or mixed-EOL committed
+# blob. The check logic mirrors tools/eol/check-eol.sh and is inlined here so a
+# repo's CI needs no script file. runs-on: python resolves to the local Forgejo
+# CI-runner image (same label the gitleaks workflow uses); it carries git + the
+# node needed by actions/checkout. The check needs only git, no extra binary.
+#
+# On homelab-iac the `scan` job is wired as the required status check
+# `eol / scan (push)` (fully-qualified context name -- bare job names silently
+# fail Forgejo branch protection). See Vikunja #1296 for the gitleaks precedent.
+name: eol
+on: [push]
+
+jobs:
+  scan:
+    runs-on: python
+    steps:
+      - uses: actions/checkout@v4
+      - name: check line endings
+        run: |
+          viol=$(git ls-files --eol | grep -E '^i/(crlf|mixed)' || true)
+          if [ -n "$viol" ]; then
+            echo "EOL gate FAILED -- CRLF/mixed line endings in committed blobs:" >&2
+            printf '%s\n' "$viol" | cut -f2- >&2
+            exit 1
+          fi
+          echo "EOL gate passed -- all tracked text blobs are LF."
