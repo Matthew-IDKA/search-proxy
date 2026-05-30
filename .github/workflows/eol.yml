@@ -1,0 +1,24 @@
+# EOL gate -- GitHub Actions enforcement tier (Vikunja #1308, follow-on to #1297).
+#
+# CANONICAL SOURCE: tools/eol/github-workflow.yml
+# Installed into each GitHub-hosted repo as .github/workflows/eol.yml.
+# Mirrors forgejo-workflow.yml: same check, different runner label. The check
+# needs only git (no binary install), so unlike the gitleaks GitHub workflow
+# there is no download step. Logic mirrors tools/eol/check-eol.sh.
+name: eol
+on: [push]
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: check line endings
+        run: |
+          viol=$(git ls-files --eol | grep -E '^i/(crlf|mixed)' || true)
+          if [ -n "$viol" ]; then
+            echo "EOL gate FAILED -- CRLF/mixed line endings in committed blobs:" >&2
+            printf '%s\n' "$viol" | cut -f2- >&2
+            exit 1
+          fi
+          echo "EOL gate passed -- all tracked text blobs are LF."
