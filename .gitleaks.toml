@@ -48,8 +48,29 @@ description = "curl -u/--user with a literal basic-auth password. Variable refs 
 regex = '''(?i)\bcurl\b[^\n]*?-(?:u|-user)[ =]+["']?[A-Za-z0-9._%+-]+:[^\s"'$]{8,}'''
 tags = ["api", "basic-auth", "generic"]
 
+# Surface 2 -- documentation drift (secrets_policy.md 3.4). Scoped to doc/manifest
+# paths: fail on a literal value assigned to a <SERVICE>_<KIND> var. Docs must name
+# vars and reference them with $-syntax, never embed the value. References that pass:
+# $VAR, ${VAR}, {{ var }} (Jinja/template), and <PLACEHOLDER> markers (global
+# CLAUDE.md placeholder convention). KIND set is the secrets_policy.md 2.5 canonical
+# {TOKEN, PASSWORD, API_KEY, JWT} -- the rule enforces that set; rejected suffixes
+# (PASS, SECRET, bare KEY) are out of scope here by design.
+[[rules]]
+id = "doc-literal-secret-assignment"
+description = "Literal value assigned to a <SERVICE>_<KIND> var in docs/manifest (secrets_policy.md 3.4 Surface 2). $VAR / ${..} / {{..}} / <PLACEHOLDER> refs pass."
+regex = '''\b[A-Z][A-Z0-9_]*_(?:TOKEN|PASSWORD|API_KEY|JWT)\s*[:=]\s*[^\s$\{<]'''
+path = '''(^|/)(docs|manifest)/|(^|/)(auth-reference|sops-conventions)\.md$'''
+tags = ["docs", "drift", "homelab"]
+
 # --- Allowlist ---------------------------------------------------------------
 # Entries here suppress matches. Prefer line-level regex over path-wide skips.
+#
+# Surface 5 -- archive directories (secrets_policy.md 3.4). NEVER add a path
+# allowlist for *archive*/ directories. Archived files are scanned by the same
+# default + custom rules as live files; that coverage is the cleanup-before-archive
+# guard. A path skip here would silently let secrets enter tracked content via
+# `git mv X archive/X`. Hits under archive paths must be classified
+# (test / expired / real) and redacted, rotated, or blocked -- not allowlisted.
 
 [[allowlists]]
 description = "False positives from CLI flags, documentation references, and known public artifacts."
